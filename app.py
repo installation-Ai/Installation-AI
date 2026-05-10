@@ -5,25 +5,23 @@ import google.generativeai as genai
 st.set_page_config(page_title="سكرتيري الذكي", page_icon="💼")
 st.title("💼 سكرتيري الذكي")
 
-# محاولة الاتصال - الطريقة المختصرة والمستقرة
+# جلب المفتاح والتأكد منه
 try:
-    if "GEMINI_API_KEY" not in st.secrets:
-        st.error("المفتاح السري غير موجود في إعدادات Secrets!")
-    else:
+    if "GEMINI_API_KEY" in st.secrets:
         api_key = st.secrets["GEMINI_API_KEY"]
         genai.configure(api_key=api_key)
         
-        # استخدام الاسم المجرد للموديل وهو الأكثر استقراراً
+        # محاولة تعريف الموديل بأكثر اسم مستقر
         model = genai.GenerativeModel('gemini-1.5-flash')
-        
-        # تجربة اتصال سريعة للتأكد
-        st.success("تم الاتصال بنجاح!") 
+        st.success("تم الاتصال بنجاح!")
+    else:
+        st.error("المفتاح السري (Secrets) غير موجود!")
 except Exception as e:
     st.error(f"خطأ في الإعدادات: {e}")
 
 # واجهة رفع الملفات
-uploaded_file = st.sidebar.file_uploader("ارفع ملفك (Excel أو CSV)", type=['csv', 'xlsx'])
-prompt = st.chat_input("اسألني أي شيء عن ملفك...")
+uploaded_file = st.sidebar.file_uploader("ارفع ملفك", type=['csv', 'xlsx'])
+prompt = st.chat_input("اسألني عن بياناتك...")
 
 if prompt:
     with st.chat_message("user"):
@@ -32,19 +30,12 @@ if prompt:
         try:
             full_prompt = prompt
             if uploaded_file is not None:
-                if uploaded_file.name.endswith('xlsx'):
-                    df = pd.read_excel(uploaded_file)
-                else:
-                    df = pd.read_csv(uploaded_file)
-                
-                # إرسال البيانات كتحليل نصي
-                data_summary = df.head(15).to_string()
-                full_prompt = f"أنت مساعد إداري خبير. هذه بيانات من ملف:\n{data_summary}\n\nأجب على هذا السؤال بناءً عليها: {prompt}"
+                df = pd.read_excel(uploaded_file) if uploaded_file.name.endswith('xlsx') else pd.read_csv(uploaded_file)
+                data_info = df.head(10).to_string()
+                full_prompt = f"هذه بيانات من ملف إكسل:\n{data_info}\n\nسؤالي هو: {prompt}"
             
-            # محاولة توليد الرد
+            # تنفيذ الطلب
             response = model.generate_content(full_prompt)
             st.markdown(response.text)
         except Exception as e:
-            # عرض الخطأ بشكل مبسط
-            st.error(f"عذراً، واجهت مشكلة في معالجة الرد. تأكد من صلاحية المفتاح.")
-            st.info(f"تفاصيل الخطأ التقني: {e}")
+            st.error(f"حدث خطأ أثناء الرد. التفاصيل: {e}")
