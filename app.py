@@ -12,11 +12,11 @@ try:
     else:
         api_key = st.secrets["GEMINI_API_KEY"]
         genai.configure(api_key=api_key)
-        # غيرنا الاسم هنا للإصدار المستقر والمضمون
-        model = genai.GenerativeModel('gemini-pro')
+        # استخدمنا هنا الاسم الكامل والأحدث للموديل
+        model = genai.GenerativeModel('models/gemini-1.5-flash')
         st.success("تم الاتصال بنجاح! السكرتير جاهز لخدمتك.") 
 except Exception as e:
-    st.error(f"خطأ تقني: {e}")
+    st.error(f"خطأ تقني في الاتصال: {e}")
 
 # واجهة رفع الملفات
 uploaded_file = st.sidebar.file_uploader("ارفع ملفك (Excel أو CSV)", type=['csv', 'xlsx'])
@@ -27,13 +27,18 @@ if prompt:
         st.markdown(prompt)
     with st.chat_message("assistant"):
         try:
-            # إضافة سياق الملف إذا تم رفعه
             full_prompt = prompt
             if uploaded_file is not None:
-                df = pd.read_excel(uploaded_file) if uploaded_file.name.endswith('xlsx') else pd.read_csv(uploaded_file)
-                full_prompt = f"بناءً على البيانات التالية:\n{df.head(10).to_string()}\n\nالسؤال: {prompt}"
+                # محاولة قراءة الملف المرفوع
+                if uploaded_file.name.endswith('xlsx'):
+                    df = pd.read_excel(uploaded_file)
+                else:
+                    df = pd.read_csv(uploaded_file)
+                # إرسال عينة من البيانات للذكاء الاصطناعي لفهم الملف
+                data_summary = df.head(10).to_string()
+                full_prompt = f"أنت سكرتير ذكي. إليك بيانات من ملف إكسل:\n{data_summary}\n\nبناءً على هذه البيانات، أجب على التالي: {prompt}"
             
             response = model.generate_content(full_prompt)
             st.markdown(response.text)
         except Exception as e:
-            st.error(f"حدثت مشكلة في الرد: {e}")
+            st.error(f"حدثت مشكلة أثناء محاولة الرد: {e}")
